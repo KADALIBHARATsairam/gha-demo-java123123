@@ -28,11 +28,18 @@ jobs:
       - name: Download and Setup Maven
         run: |
           echo "Downloading Maven..."
-          wget -q https://apache.org
-          tar -xzf apache-maven-3.9.9-bin.tar.gz
+          # Uses curl with redirect follows (-L), retries, and output naming (-o)
+          curl -sL --retry 3 https://apache.org -o apache-maven-3.9.9-bin.tar.gz
           
-          # Add the Maven binary path directly to the GitHub Actions Environment Path
-          echo "$GITHUB_WORKSPACE/apache-maven-3.9.9/bin" >> $GITHUB_PATH
+          # Check if file exists before running tar to avoid exit errors
+          if [ -f "apache-maven-3.9.9-bin.tar.gz" ]; then
+            tar -xzf apache-maven-3.9.9-bin.tar.gz
+            echo "$GITHUB_WORKSPACE/apache-maven-3.9.9/bin" >> $GITHUB_PATH
+          else
+            echo "Error: Maven download failed completely."
+            exit 1
+          fi
+
 
       # 4. Verify Java and Maven versions
       - name: Check Java Version
