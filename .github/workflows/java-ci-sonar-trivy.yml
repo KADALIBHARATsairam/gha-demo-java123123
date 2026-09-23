@@ -48,16 +48,17 @@ jobs:
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
             -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
-      # 6. Set up Docker Buildx (CRITICAL FIX)
+      # 6. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 7. Build Docker Image
+      # 7. Build Docker Image & Export to Host (CRITICAL FIX)
       - name: Build Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: false
+          load: true # Forces Buildx to extract the image to the local Docker storage
           tags: kadalibharatsairam01/java-gha:latest
 
       # 8. Scan Docker image with trivy
