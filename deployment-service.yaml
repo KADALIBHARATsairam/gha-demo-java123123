@@ -14,14 +14,11 @@ spec:
     spec:
       containers:
         - name: boardgame
-          image: kuchalakantikris/boardgame89:latest # Image that will be used to containers in the cluster
+          image: kadalibharatsairam01/java-gha:9b60e75d871f2562bf28ed18efe66b4a5fa6bd8b # Image that will be used to containers in the cluster
           imagePullPolicy: Always
           ports:
             - containerPort: 8080 # The port that the container is running on in the cluster
-
-
 ---
-
 apiVersion: v1 # Kubernetes API version
 kind: Service # Kubernetes resource kind we are creating
 metadata: # Metadata of the resource kind we are creating
@@ -32,5 +29,9 @@ spec:
   ports:
     - protocol: "TCP"
       port: 80
-      targetPort: 8080 
+      targetPort: 8080
   type: LoadBalancer # type of the service.
+  template:
+    spec:
+      containers:
+        - image: kadalibharatsairam01/java-gha:9b60e75d871f2562bf28ed18efe66b4a5fa6bd8b
