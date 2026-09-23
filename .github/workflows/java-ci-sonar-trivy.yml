@@ -1,19 +1,20 @@
-name: CI Java 18 App using SonarQube
+name: CI/CD Java 18 & Docker Hub
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+permissions:
+  contents: write # Required to push the updated deployment.yml back to the repo
 
 jobs:
-  build:
-    runs-on: self-hosted
+  build-and-deploy:
+    runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout source code
+      # 1. Checkout Code
       - name: Code Checkout
         uses: actions/checkout@v4
         with:
@@ -27,44 +28,62 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # 3. Setup Maven
-      - name: Set up Apache Maven
-        uses: stCarolas/setup-maven@v5
+      # 3. Build Application
+      - name: Build with Maven
+        run: mvn -B clean package -DskipTests
+
+      # 4. Login to Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          maven-version: 3.9.9
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # 4. Verify Java and Maven versions
-      - name: Check Java and Maven Versions
-        run: |
-          java -version
-          mvn -version
-
-      # 5. Build + SonarQube Analysis
-      - name: Build and SonarQube Analysis
-        run: |
-          mvn -B clean verify \
-            org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
-            -Dsonar.projectKey=Boardgame \
-            -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
-            -Dsonar.token=${{ secrets.SONAR_TOKEN }}
-
-      # 6. Set up Docker Buildx
+      # 5. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 7. Build Docker Image & Export to Host (CRITICAL FIX)
-      - name: Build Docker Image
+      # 6. Build and Push Docker Image
+      # We use the GitHub Commit SHA as the unique tag
+      - name: Build and Push
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: false
-          load: true # Forces Buildx to extract the image to the local Docker storage
-          tags: kadalibharatsairam01/java-gha:latest
+          push: true
+          tags: |
+            kadalibharatsairam01/java-gha:latest
+            kadalibharatsairam01/java-gha:${{ github.sha }}
 
-      # 8. Scan Docker image with trivy
-      - name: Scan Docker image with trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: kadalibharatsairam01/java-gha:latest
-          severity: CRITICAL,HIGH
-          exit-code: 0
+      # 7. Install yq (Portable YAML Processor)
+      - name: Install yq
+        run: |
+          wget https://github.com -O /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+          yq --version
+
+      # 8. Update deployment.yml with new Image Tag
+      # Adjust the yq path ('.spec.template...') to match your specific yaml structure
+      - name: Update Deployment YAML
+        run: |
+          echo "Updating image tag to: ${{ github.sha }}"
+          
+          # This command updates the image field in a standard K8s deployment file
+          yq -i '.spec.template.spec.containers[0].image = "kadalibharatsairam01/java-gha:${{ github.sha }}"' deployment.yml
+          
+          # Verify the change
+          cat deployment.yml | grep "image:"
+
+      # 9. Commit and Push Changes
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check if there are changes before committing
+          if [[ -n $(git status -s) ]]; then
+            git add deployment.yml
+            git commit -m "Update deployment image to ${{ github.sha }}"
+            git push origin main
+          else
+            echo "No changes to deployment.yml"
+          fi
