@@ -44,7 +44,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       # 6. Build and Push Docker Image
-      # We use the GitHub Commit SHA as the unique tag
       - name: Build and Push
         uses: docker/build-push-action@v6
         with:
@@ -54,36 +53,30 @@ jobs:
             kadalibharatsairam01/java-gha:latest
             kadalibharatsairam01/java-gha:${{ github.sha }}
 
-      # 7. Install yq (Portable YAML Processor)
-      - name: Install yq
-        run: |
-          wget https://github.com -O /usr/local/bin/yq
-          chmod +x /usr/local/bin/yq
-          yq --version
-
-      # 8. Update deployment.yml with new Image Tag
-      # Adjust the yq path ('.spec.template...') to match your specific yaml structure
+      # 7. Update deployment.yml with new Image Tag
+      # We use the pre-installed yq directly on the ubuntu-latest host environment
       - name: Update Deployment YAML
         run: |
-          echo "Updating image tag to: ${{ github.sha }}"
+          echo "Verifying pre-installed yq version:"
+          yq --version
           
-          # This command updates the image field in a standard K8s deployment file
+          echo "Updating image tag to: ${{ github.sha }}"
+          # Updates the image path inside your manifest
           yq -i '.spec.template.spec.containers[0].image = "kadalibharatsairam01/java-gha:${{ github.sha }}"' deployment.yml
           
-          # Verify the change
+          # Verify the change in logs
           cat deployment.yml | grep "image:"
 
-      # 9. Commit and Push Changes
+      # 8. Commit and Push Changes back to GitHub
       - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Check if there are changes before committing
           if [[ -n $(git status -s) ]]; then
             git add deployment.yml
-            git commit -m "Update deployment image to ${{ github.sha }}"
+            git commit -m "Update deployment image to ${{ github.sha }} [skip ci]"
             git push origin main
           else
-            echo "No changes to deployment.yml"
+            echo "No changes discovered in deployment.yml"
           fi
