@@ -19,7 +19,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. Setup Java 18 (Updated to v4 as v5 is the current standard recommendation)
+      # 2. Setup Java 18
       - name: Set up JDK 18
         uses: actions/setup-java@v4
         with:
@@ -27,21 +27,11 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # 3. Setup Maven (Using the correct community action)
+      # 3. Setup Maven
       - name: Set up Apache Maven
         uses: stCarolas/setup-maven@v5
         with:
           maven-version: 3.9.9
-
-      # --- ALTERNATIVE: MANUAL INSTALL (Use this if the action above fails) ---
-      # - name: Manual Maven Install
-      #   run: |
-      #     echo "Downloading Maven 3.9.9..."
-      #     # Note: Using dlcdn.apache.org because 3.9.9 is the *current* release
-      #     curl -sL https://apache.org -o maven.tar.gz
-      #     tar -xzf maven.tar.gz
-      #     echo "$GITHUB_WORKSPACE/apache-maven-3.9.9/bin" >> $GITHUB_PATH
-      # ------------------------------------------------------------------------
 
       # 4. Verify Java and Maven versions
       - name: Check Java and Maven Versions
@@ -58,7 +48,11 @@ jobs:
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
             -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
-      # 6. Build Docker Image
+      # 6. Set up Docker Buildx (CRITICAL FIX)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 7. Build Docker Image
       - name: Build Docker Image
         uses: docker/build-push-action@v6
         with:
@@ -66,7 +60,7 @@ jobs:
           push: false
           tags: kadalibharatsairam01/java-gha:latest
 
-      # 7. Scan Docker image with trivy
+      # 8. Scan Docker image with trivy
       - name: Scan Docker image with trivy
         uses: aquasecurity/trivy-action@master
         with:
