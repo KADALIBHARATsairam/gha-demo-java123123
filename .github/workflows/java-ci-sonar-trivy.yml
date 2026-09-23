@@ -4,13 +4,11 @@ on:
   push:
     branches:
       - main
-
-env:
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
+  workflow_dispatch: # Allows manual pipeline triggering from the GitHub UI
 
 jobs:
   build:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest # Switched from self-hosted to GitHub-hosted runner
 
     steps:
       # 1. Checkout source code
@@ -19,7 +17,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. Setup Java 18
+      # 2. Setup Java 18 (GitHub runners download this dynamically)
       - name: Set up JDK 18
         uses: actions/setup-java@v4
         with:
@@ -27,19 +25,15 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # 3. Setup Maven
-      - name: Set up Apache Maven
-        uses: stCarolas/setup-maven@v5
-        with:
-          maven-version: 3.9.9
-
-      # 4. Verify Java and Maven versions
+      # 3. Verify Java and Maven versions
+      # Note: Maven is pre-installed on ubuntu-latest, so this will work out-of-the-box
       - name: Check Java and Maven Versions
         run: |
           java -version
           mvn -version
 
-      # 5. Build + SonarQube Analysis
+      # 4. Build + SonarQube Analysis
+      # Ensure your SONAR_HOST_URL and SONAR_TOKEN secrets are set in your GitHub Repository settings
       - name: Build and SonarQube Analysis
         run: |
           mvn -B clean verify \
@@ -48,23 +42,23 @@ jobs:
             -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
             -Dsonar.token=${{ secrets.SONAR_TOKEN }}
 
-      # 6. Set up Docker Buildx
+      # 5. Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 7. Build Docker Image & Export to Host (CRITICAL FIX)
+      # 6. Build Docker Image & Export to Host
       - name: Build Docker Image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: false
-          load: true # Forces Buildx to extract the image to the local Docker storage
+          load: true # Exports image to the runner's local Docker daemon so Trivy can see it
           tags: kadalibharatsairam01/java-gha:latest
 
-      # 8. Scan Docker image with trivy
+      # 7. Scan Docker image with trivy
       - name: Scan Docker image with trivy
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: kadalibharatsairam01/java-gha:latest
           severity: CRITICAL,HIGH
-          exit-code: 0
+          exit-code: 0 
