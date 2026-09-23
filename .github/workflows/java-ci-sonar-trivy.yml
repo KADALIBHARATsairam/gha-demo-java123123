@@ -5,7 +5,6 @@ on:
     branches:
       - main
 
-# Global environment setting to acknowledge the Node version transition if needed
 env:
   ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: "true"
 
@@ -20,19 +19,29 @@ jobs:
         with:
           fetch-depth: 0
 
-      # 2. Setup Java 18 (Migrated to v5 to fix deprecation warnings)
+      # 2. Setup Java 18 (Updated to v4 as v5 is the current standard recommendation)
       - name: Set up JDK 18
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v4
         with:
           java-version: '18'
           distribution: 'temurin'
           cache: maven
 
-      # 3. Setup Apache Maven using the official GitHub Action
+      # 3. Setup Maven (Using the correct community action)
       - name: Set up Apache Maven
-        uses: stefanzweifel/setup-maven@v1
+        uses: stCarolas/setup-maven@v5
         with:
-          maven-version: '3.9.9'
+          maven-version: 3.9.9
+
+      # --- ALTERNATIVE: MANUAL INSTALL (Use this if the action above fails) ---
+      # - name: Manual Maven Install
+      #   run: |
+      #     echo "Downloading Maven 3.9.9..."
+      #     # Note: Using dlcdn.apache.org because 3.9.9 is the *current* release
+      #     curl -sL https://apache.org -o maven.tar.gz
+      #     tar -xzf maven.tar.gz
+      #     echo "$GITHUB_WORKSPACE/apache-maven-3.9.9/bin" >> $GITHUB_PATH
+      # ------------------------------------------------------------------------
 
       # 4. Verify Java and Maven versions
       - name: Check Java and Maven Versions
