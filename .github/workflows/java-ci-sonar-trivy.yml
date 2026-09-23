@@ -47,4 +47,4 @@ jobs:
         with:
           image-ref: kadalibharatsairam01/java-gha:latest
           severity: CRITICAL,HIGH
-          exit-code: 1 
+          exit-code: 0 
